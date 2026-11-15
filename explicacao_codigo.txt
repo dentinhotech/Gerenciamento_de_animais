@@ -1,0 +1,448 @@
+EXPLICACAO DETALHADA DO PROGRAMA DE CADASTRO DE CACHORROS
+========================================================
+
+1. OBJETIVO DO PROGRAMA
+-----------------------
+
+Este programa Java cadastra cachorros em um banco de dados MariaDB/MySQL
+local, normalmente iniciado pelo XAMPP. Ele funciona pelo terminal e permite:
+
+1. Cadastrar um cachorro.
+2. Listar os cachorros cadastrados.
+3. Editar os dados de um cachorro.
+4. Excluir um cachorro.
+5. Encerrar o programa.
+
+Como os registros sao gravados na tabela do banco, eles continuam salvos
+depois que o programa termina. A lista ArrayList usada na listagem e apenas
+temporaria: ela recebe os resultados consultados no banco.
+
+O codigo esta dividido em dois arquivos:
+
+- Main.java: conecta ao banco, mostra o menu e executa as operacoes SQL.
+- Cachorro.java: representa os dados de um cachorro e formata sua exibicao.
+
+O programa espera encontrar:
+
+- Banco: gerenciamento_animais
+- Tabela: cachorros
+- Colunas: id, nome, raca e idade
+
+
+2. BANCO DE DADOS E DRIVER JDBC
+-------------------------------
+
+O programa usa JDBC, a API padrao do Java para acessar bancos relacionais.
+O arquivo mariadb-java-client-4.0.0.jar e o driver que permite a comunicacao
+entre o Java e o MariaDB usado pelo XAMPP.
+
+O JAR precisa estar na pasta do projeto, junto de Main.java e Cachorro.java,
+e tambem precisa estar no classpath ao executar o programa.
+
+O banco e a tabela devem ser criados antes de iniciar o programa. Um exemplo
+de SQL compativel com o codigo e:
+
+    CREATE DATABASE gerenciamento_animais
+      CHARACTER SET utf8mb4
+      COLLATE utf8mb4_unicode_ci;
+
+    USE gerenciamento_animais;
+
+    CREATE TABLE cachorros (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      nome VARCHAR(100) NOT NULL,
+      raca VARCHAR(100) NOT NULL,
+      idade INT UNSIGNED NOT NULL
+    );
+
+O programa nao cria o banco nem a tabela automaticamente. Se eles nao
+existirem, a operacao correspondente mostrara um erro do banco.
+
+
+3. CLASSE Cachorro
+------------------
+
+Declaracao:
+
+    public class Cachorro {
+
+Essa classe e um modelo usado para representar um cachorro. Cada objeto
+Cachorro possui os seguintes atributos:
+
+    int id;
+    String nome;
+    String raca;
+    int idade;
+
+- id: identificador do registro criado pelo banco.
+- nome: nome do cachorro, armazenado como texto.
+- raca: raca do cachorro, armazenada como texto.
+- idade: idade do cachorro, armazenada como numero inteiro.
+
+Os atributos nao possuem a palavra-chave private. Portanto, tem acesso
+padrao (package-private) e podem ser acessados por outras classes do mesmo
+pacote. Como os arquivos nao declaram um pacote, Main consegue acessar os
+atributos diretamente.
+
+3.1. Construtores
+
+    public Cachorro(String nome, String raca, int idade) {
+        this(0, nome, raca, idade);
+    }
+
+    public Cachorro(int id, String nome, String raca, int idade) {
+        this.id = id;
+        this.nome = nome;
+        this.raca = raca;
+        this.idade = idade;
+    }
+
+O segundo construtor recebe todos os dados, incluindo o identificador.
+Ele e usado quando Main cria objetos a partir das linhas retornadas pelo
+banco.
+
+O primeiro construtor mantem a possibilidade de criar um objeto sem informar
+um ID. Ele delega ao segundo construtor usando 0 como valor inicial para id.
+O banco e que gera o ID real quando um cachorro e inserido.
+
+this identifica o objeto que esta sendo criado. Por exemplo, this.nome e o
+atributo do objeto, enquanto nome sem this e o parametro recebido.
+
+3.2. Metodo toString
+
+    @Override
+    public String toString() {
+        return "Nome: " + this.nome + " | Raça: " + this.raca
+                + " | Idade: " + this.idade + " anos";
+    }
+
+toString e um metodo herdado de Object. @Override informa que a classe esta
+fornecendo sua propria implementacao. O metodo retorna os dados em formato
+de texto. A listagem chama esse metodo ao imprimir cada objeto.
+
+
+4. CONEXAO COM O BANCO
+----------------------
+
+Main define tres constantes:
+
+    private static final String URL =
+            "jdbc:mariadb://localhost:3306/gerenciamento_animais?sslMode=disable";
+    private static final String USUARIO = "root";
+    private static final String SENHA = "";
+
+- URL: indica que o driver MariaDB deve acessar o banco
+  gerenciamento_animais no servidor local, porta 3306.
+- USUARIO: usuario configurado no banco; neste exemplo e root.
+- SENHA: senha desse usuario. O valor vazio e comum em algumas instalacoes
+  locais do XAMPP, mas deve ser alterado se houver uma senha configurada.
+- sslMode=disable: desativa SSL para esta conexao local, pois a instalacao
+  local do XAMPP pode nao oferecer TLS/SSL. Nao use essa configuracao como
+  recomendacao para uma conexao remota de producao.
+
+A conexao e aberta com:
+
+    DriverManager.getConnection(URL, USUARIO, SENHA)
+
+DriverManager usa o driver JDBC presente no classpath e devolve uma
+Connection, que representa a conexao ativa com o banco.
+
+
+5. METODO main E RECURSOS
+-------------------------
+
+    public static void main(String[] args) {
+
+main e o ponto de entrada chamado pela Java Virtual Machine (JVM).
+
+A conexao e o Scanner sao criados em um try-with-resources:
+
+    try (Connection conexao = DriverManager.getConnection(URL, USUARIO, SENHA);
+         Scanner scanner = new Scanner(System.in)) {
+
+Esse formato fecha automaticamente ambos os recursos quando o programa sai
+do bloco, inclusive quando ocorre uma excecao. Connection e usada pelas
+operacoes SQL; Scanner le as entradas digitadas no terminal.
+
+A variavel opcao guarda a escolha do usuario:
+
+    int opcao = 0;
+
+O valor inicial 0 permite que o laco do menu comece.
+
+
+6. LACO E MENU
+--------------
+
+    while (opcao != 5) {
+
+O menu se repete enquanto a opcao for diferente de 5. A opcao e lida com:
+
+    opcao = scanner.nextInt();
+    scanner.nextLine();
+
+nextInt le um numero inteiro. nextLine consome o restante da linha, incluindo
+a quebra de linha deixada depois do numero, para que as proximas leituras de
+texto funcionem corretamente.
+
+O menu usa switch para escolher uma operacao:
+
+    switch (opcao) {
+        case 1:
+            cadastrarCachorro(conexao, scanner);
+            break;
+        ...
+        default:
+            System.out.println("Opção inválida.");
+    }
+
+Cada case chama um metodo especifico. break evita que a execucao continue
+para os cases seguintes. default trata qualquer numero que nao seja uma
+opcao conhecida.
+
+As operacoes recebem a mesma Connection aberta no inicio do programa; assim,
+nao e necessario abrir uma nova conexao para cada consulta.
+
+
+7. OPERACAO 1: CADASTRAR
+------------------------
+
+O case 1 chama:
+
+    cadastrarCachorro(conexao, scanner);
+
+Esse metodo le nome, raca e idade. Em seguida, prepara o comando:
+
+    INSERT INTO cachorros (nome, raca, idade) VALUES (?, ?, ?)
+
+Os pontos de interrogacao sao parametros. Eles recebem os valores com:
+
+    comando.setString(1, nome);
+    comando.setString(2, raca);
+    comando.setInt(3, idade);
+
+O primeiro parametro corresponde ao primeiro ?, o segundo ao segundo ?, e o
+terceiro ao terceiro ?. PreparedStatement separa os valores do texto SQL,
+evitando montar a consulta por concatenacao de texto.
+
+    comando.executeUpdate();
+
+executeUpdate executa o INSERT. O ID nao e informado nesse comando, pois a
+tabela deve gerar esse valor automaticamente com AUTO_INCREMENT. Depois de
+uma insercao bem-sucedida, o programa mostra a mensagem de confirmacao.
+
+PreparedStatement tambem e usado em um try-with-resources e e fechado
+automaticamente ao fim da operacao.
+
+
+8. OPERACAO 2: LISTAR
+---------------------
+
+O case 2 chama listarCachorros(conexao). Esse metodo consulta os registros
+chamando obterCachorros(conexao), exibe o titulo e verifica se o resultado
+esta vazio.
+
+    if (cachorros.isEmpty()) {
+        System.out.println("Nenhum cachorro cadastrado.");
+        return;
+    }
+
+isEmpty retorna true se a lista nao contem objetos. return encerra o metodo
+nesse caso, sem tentar imprimir elementos.
+
+Se houver resultados, o metodo percorre a lista:
+
+    for (Cachorro cachorro : cachorros) {
+        System.out.println("ID " + cachorro.id + " -> " + cachorro);
+    }
+
+Esse for-each visita cada objeto. cachorro.id mostra o identificador do
+banco, que deve ser usado para editar ou excluir. Ao concatenar cachorro ao
+texto, Java chama automaticamente cachorro.toString().
+
+Exemplo de saida:
+
+    ID 1 -> Nome: Luna | Raça: Poodle | Idade: 3 anos
+
+O ID e diferente de uma posicao de ArrayList: e a identificacao persistente
+do registro no banco. Ele nao muda quando outro registro e removido.
+
+
+9. METODO obterCachorros
+------------------------
+
+Esse metodo consulta os dados e os converte em objetos Cachorro:
+
+    String sql = "SELECT id, nome, raca, idade FROM cachorros ORDER BY id";
+
+ORDER BY id solicita que os registros sejam retornados em ordem crescente de
+ID.
+
+    PreparedStatement comando = conexao.prepareStatement(sql);
+    ResultSet resultados = comando.executeQuery();
+
+executeQuery executa uma consulta SELECT e devolve um ResultSet, que permite
+percorrer as linhas retornadas.
+
+    while (resultados.next()) {
+        cachorros.add(new Cachorro(
+                resultados.getInt("id"),
+                resultados.getString("nome"),
+                resultados.getString("raca"),
+                resultados.getInt("idade")));
+    }
+
+next avanca para a proxima linha e retorna false quando nao ha mais linhas.
+getInt e getString recuperam os valores das colunas pelo nome. Para cada
+linha, o metodo cria um objeto Cachorro e o adiciona a ArrayList.
+
+Essa lista e apenas uma representacao temporaria dos dados consultados. A
+fonte permanente dos registros continua sendo a tabela do banco.
+
+O metodo devolve a lista:
+
+    return cachorros;
+
+O PreparedStatement e o ResultSet tambem sao fechados automaticamente.
+
+
+10. OPERACAO 3: EDITAR
+----------------------
+
+O case 3 chama editarCachorro(conexao, scanner). Primeiro, o metodo mostra
+a lista atual para que o usuario veja os IDs. Depois, le o ID escolhido e
+os novos valores de nome, raca e idade.
+
+O comando usado e:
+
+    UPDATE cachorros SET nome = ?, raca = ?, idade = ? WHERE id = ?
+
+Os tres primeiros parametros sao os valores novos; o ultimo seleciona o
+registro pelo ID:
+
+    comando.setString(1, nome);
+    comando.setString(2, raca);
+    comando.setInt(3, idade);
+    comando.setInt(4, id);
+
+executeUpdate executa o UPDATE e devolve o numero de linhas alteradas. Se o
+resultado for 0, nenhum registro possuia aquele ID, entao o programa avisa
+que o cachorro nao existe. Se alguma linha foi alterada, mostra
+"Dados atualizados!".
+
+Como o UPDATE altera a tabela diretamente, nao e necessario manter uma copia
+atualizada de uma lista em memoria.
+
+
+11. OPERACAO 4: EXCLUIR
+-----------------------
+
+O case 4 chama excluirCachorro(conexao, scanner). O metodo lista os
+cachorros, le o ID informado e prepara:
+
+    DELETE FROM cachorros WHERE id = ?
+
+O parametro recebe o ID:
+
+    comando.setInt(1, id);
+
+executeUpdate executa a exclusao. Se nenhuma linha for afetada, o ID nao foi
+encontrado e o programa avisa o usuario. Caso contrario, informa que o
+cachorro foi removido.
+
+A exclusao nao renumera os demais IDs. Novos registros recebem os IDs
+definidos pelo AUTO_INCREMENT do banco.
+
+
+12. TRATAMENTO DE ERROS SQL
+---------------------------
+
+Os metodos que executam comandos no banco declaram:
+
+    throws SQLException
+
+Isso permite que erros JDBC sejam encaminhados para o codigo que chamou o
+metodo.
+
+Dentro do laco, as operacoes estao em um try/catch:
+
+    catch (SQLException e) {
+        System.err.println("Erro ao acessar o banco de dados: " + e.getMessage());
+    }
+
+Se uma operacao SQL falhar, a mensagem e mostrada e o laco do menu pode
+continuar.
+
+A abertura da conexao ocorre em um try/catch externo. Se falhar, o programa
+informa que nao conseguiu conectar e imprime os detalhes da excecao. Causas
+comuns incluem:
+
+- O MySQL/MariaDB do XAMPP nao estar iniciado.
+- O banco ou a tabela nao ter sido criado.
+- Usuario ou senha incorretos.
+- Driver JDBC ausente do classpath.
+- Porta configurada diferente de 3306.
+
+Entradas nao numericas onde nextInt e usado podem causar
+InputMismatchException. Essa excecao nao e tratada pelo programa e pode
+interromper sua execucao.
+
+
+13. ENCERRAMENTO
+----------------
+
+Quando o usuario escolhe 5, o case correspondente exibe "Programa encerrado".
+Em seguida, a condicao do while deixa de ser verdadeira, o laco termina e o
+programa sai do try-with-resources.
+
+Ao sair, Java fecha automaticamente o Scanner e a Connection. Fechar a
+conexao libera os recursos usados no servidor. Os registros gravados nao
+sao apagados quando a conexao fecha.
+
+
+14. COMPILAR E EXECUTAR
+-----------------------
+
+No PowerShell, a partir da pasta que contem Main.java, Cachorro.java e o JAR:
+
+    javac -encoding UTF-8 -cp ".;mariadb-java-client-4.0.0.jar" Main.java Cachorro.java
+    java -cp ".;mariadb-java-client-4.0.0.jar" Main
+
+- javac compila os arquivos Java.
+- java inicia a classe Main.
+- -cp informa ao Java onde procurar as classes e o driver.
+- No Windows, o ponto e virgula separa os itens do classpath.
+- -encoding UTF-8 preserva corretamente os caracteres acentuados do codigo.
+
+Antes de executar, inicie o MySQL/MariaDB no XAMPP e confira o banco, a tabela,
+o usuario e a senha definidos no programa.
+
+
+15. RESUMO DOS ELEMENTOS JAVA UTILIZADOS
+----------------------------------------
+
+- class: define uma classe, que serve como modelo de objetos.
+- String: representa texto.
+- int: representa numeros inteiros.
+- ArrayList<Cachorro>: lista temporaria de objetos retornados pelo banco.
+- Scanner: le valores digitados no terminal.
+- Connection: representa uma conexao JDBC com o banco.
+- DriverManager: cria a conexao usando a URL e o driver JDBC.
+- PreparedStatement: prepara e executa comandos SQL com parametros.
+- ResultSet: permite percorrer as linhas de um SELECT.
+- SQLException: representa erros ocorridos durante operacoes JDBC.
+- try-with-resources: fecha automaticamente os recursos ao sair do bloco.
+- switch / case / default: direciona o fluxo conforme a opcao do menu.
+- while: repete o menu enquanto a opcao nao for 5.
+- for-each: percorre os objetos da lista.
+- INSERT: inclui um registro na tabela.
+- SELECT: consulta registros da tabela.
+- UPDATE: altera os dados de um registro.
+- DELETE: remove um registro.
+- executeUpdate: executa INSERT, UPDATE ou DELETE.
+- executeQuery: executa SELECT.
+- @Override: indica a substituicao de um metodo herdado.
+- toString: fornece uma representacao textual do objeto Cachorro.
+
+
+FIM DA EXPLICACAO
