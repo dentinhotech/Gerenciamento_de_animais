@@ -1,0 +1,8 @@
+Para importar o arquivo Database.sql no XAMPP:
+
+1. Abra o XAMPP Control Panel e inicie o MySQL. Inicie também o Apache para acessar o phpMyAdmin.
+2. No navegador, acesse http://localhost/phpmyadmin.
+3. Clique na aba Importar.
+4. Em Escolher arquivo, selecione Database.sql na pasta do projeto.
+5. Deixe o formato como SQL e clique em Importar ou Executar, conforme aparecer na tela.
+6. Confira na barra lateral se apareceu o banco gerenciamento_animais e se dentro dele existe a tabela cachorros.
