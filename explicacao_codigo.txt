@@ -59,66 +59,58 @@ O programa nao cria o banco nem a tabela automaticamente. Se eles nao
 existirem, a operacao correspondente mostrara um erro do banco.
 
 
-3. CLASSE Cachorro
-------------------
+3. CLASSES Animal E Cachorro
+----------------------------
 
-Declaracao:
+Animal e uma classe abstrata que representa as informacoes comuns a animais:
 
-    public class Cachorro {
+    public abstract class Animal {
+        int id;
+        String nome;
+        String raca;
+        int idade;
 
-Essa classe e um modelo usado para representar um cachorro. Cada objeto
-Cachorro possui os seguintes atributos:
-
-    int id;
-    String nome;
-    String raca;
-    int idade;
-
-- id: identificador do registro criado pelo banco.
-- nome: nome do cachorro, armazenado como texto.
-- raca: raca do cachorro, armazenada como texto.
-- idade: idade do cachorro, armazenada como numero inteiro.
-
-Os atributos nao possuem a palavra-chave private. Portanto, tem acesso
-padrao (package-private) e podem ser acessados por outras classes do mesmo
-pacote. Como os arquivos nao declaram um pacote, Main consegue acessar os
-atributos diretamente.
-
-3.1. Construtores
-
-    public Cachorro(String nome, String raca, int idade) {
-        this(0, nome, raca, idade);
+        public abstract String apresentarDetalhes();
     }
 
-    public Cachorro(int id, String nome, String raca, int idade) {
-        this.id = id;
-        this.nome = nome;
-        this.raca = raca;
-        this.idade = idade;
-    }
+Ela armazena o ID, nome, raca e idade. O metodo apresentarDetalhes e
+abstrato: a classe Animal declara que esse comportamento existe, mas deixa
+cada classe derivada decidir como apresentar seus detalhes.
 
-O segundo construtor recebe todos os dados, incluindo o identificador.
-Ele e usado quando Main cria objetos a partir das linhas retornadas pelo
-banco.
+Cachorro e a classe concreta que herda de Animal:
 
-O primeiro construtor mantem a possibilidade de criar um objeto sem informar
-um ID. Ele delega ao segundo construtor usando 0 como valor inicial para id.
-O banco e que gera o ID real quando um cachorro e inserido.
+    public class Cachorro extends Animal {
 
-this identifica o objeto que esta sendo criado. Por exemplo, this.nome e o
-atributo do objeto, enquanto nome sem this e o parametro recebido.
+A palavra-chave extends indica heranca. Cachorro recebe os atributos e o
+construtor da classe base Animal, alem de poder implementar comportamentos
+especificos. Seu construtor usa super(id, nome, raca, idade) para chamar o
+construtor da classe base.
 
-3.2. Metodo toString
+3.1. Sobrescrita do metodo
 
     @Override
-    public String toString() {
+    public String apresentarDetalhes() {
         return "Nome: " + this.nome + " | Raça: " + this.raca
                 + " | Idade: " + this.idade + " anos";
     }
 
-toString e um metodo herdado de Object. @Override informa que a classe esta
-fornecendo sua propria implementacao. O metodo retorna os dados em formato
-de texto. A listagem chama esse metodo ao imprimir cada objeto.
+@Override indica que Cachorro fornece a implementacao do metodo abstrato
+declarado por Animal. A classe tambem sobrescreve toString(), que devolve
+apresentarDetalhes() para manter a exibicao textual do objeto.
+
+3.2. Polimorfismo na listagem
+
+    ArrayList<Animal> cachorros = obterCachorros(conexao);
+
+    for (Animal animal : cachorros) {
+        System.out.println("ID " + animal.id + " -> " + animal.apresentarDetalhes());
+    }
+
+A lista e declarada com o tipo mais geral Animal, mas os objetos nela sao
+instancias de Cachorro. Quando animal.apresentarDetalhes() e chamado, Java
+executa a implementacao sobrescrita em Cachorro. Esse comportamento e
+polimorfismo: a chamada usa a referencia da classe base e a implementacao
+correspondente ao tipo real do objeto.
 
 
 4. CONEXAO COM O BANCO
@@ -178,12 +170,13 @@ O valor inicial 0 permite que o laco do menu comece.
 
 O menu se repete enquanto a opcao for diferente de 5. A opcao e lida com:
 
-    opcao = scanner.nextInt();
-    scanner.nextLine();
+    opcao = lerInteiro(scanner, "Escolha uma opção: ");
 
-nextInt le um numero inteiro. nextLine consome o restante da linha, incluindo
-a quebra de linha deixada depois do numero, para que as proximas leituras de
-texto funcionem corretamente.
+lerInteiro le a linha digitada e tenta converter o texto para um numero
+inteiro. Se o usuario digitar letras ou outro valor invalido, o metodo mostra
+uma mensagem e pede novamente, sem encerrar o programa. Como ele le a linha
+completa usando nextLine, tambem evita o problema de sobra de quebra de linha
+que pode acontecer ao misturar nextInt e nextLine.
 
 O menu usa switch para escolher uma operacao:
 
@@ -250,15 +243,15 @@ esta vazio.
 isEmpty retorna true se a lista nao contem objetos. return encerra o metodo
 nesse caso, sem tentar imprimir elementos.
 
-Se houver resultados, o metodo percorre a lista:
+Se houver resultados, o metodo percorre a lista de Animal:
 
-    for (Cachorro cachorro : cachorros) {
-        System.out.println("ID " + cachorro.id + " -> " + cachorro);
+    for (Animal animal : cachorros) {
+        System.out.println("ID " + animal.id + " -> " + animal.apresentarDetalhes());
     }
 
-Esse for-each visita cada objeto. cachorro.id mostra o identificador do
-banco, que deve ser usado para editar ou excluir. Ao concatenar cachorro ao
-texto, Java chama automaticamente cachorro.toString().
+Esse for-each visita cada objeto. animal.id mostra o identificador do banco,
+que deve ser usado para editar ou excluir. A chamada
+animal.apresentarDetalhes() demonstra o polimorfismo explicado anteriormente.
 
 Exemplo de saida:
 
@@ -271,7 +264,8 @@ do registro no banco. Ele nao muda quando outro registro e removido.
 9. METODO obterCachorros
 ------------------------
 
-Esse metodo consulta os dados e os converte em objetos Cachorro:
+Esse metodo consulta os dados e os converte em objetos Cachorro, guardados
+em uma lista declarada como ArrayList<Animal>:
 
     String sql = "SELECT id, nome, raca, idade FROM cachorros ORDER BY id";
 
@@ -294,7 +288,7 @@ percorrer as linhas retornadas.
 
 next avanca para a proxima linha e retorna false quando nao ha mais linhas.
 getInt e getString recuperam os valores das colunas pelo nome. Para cada
-linha, o metodo cria um objeto Cachorro e o adiciona a ArrayList.
+linha, o metodo cria um objeto Cachorro e o adiciona a ArrayList<Animal>.
 
 Essa lista e apenas uma representacao temporaria dos dados consultados. A
 fonte permanente dos registros continua sendo a tabela do banco.
@@ -383,9 +377,9 @@ comuns incluem:
 - Driver JDBC ausente do classpath.
 - Porta configurada diferente de 3306.
 
-Entradas nao numericas onde nextInt e usado podem causar
-InputMismatchException. Essa excecao nao e tratada pelo programa e pode
-interromper sua execucao.
+O metodo lerInteiro trata entradas nao numericas capturando
+NumberFormatException e repetindo a pergunta. Essa validacao e usada para a
+opcao do menu, idade e IDs.
 
 
 13. ENCERRAMENTO
@@ -424,7 +418,7 @@ o usuario e a senha definidos no programa.
 - class: define uma classe, que serve como modelo de objetos.
 - String: representa texto.
 - int: representa numeros inteiros.
-- ArrayList<Cachorro>: lista temporaria de objetos retornados pelo banco.
+- ArrayList<Animal>: lista temporaria de objetos Cachorro retornados pelo banco.
 - Scanner: le valores digitados no terminal.
 - Connection: representa uma conexao JDBC com o banco.
 - DriverManager: cria a conexao usando a URL e o driver JDBC.
@@ -435,13 +429,22 @@ o usuario e a senha definidos no programa.
 - switch / case / default: direciona o fluxo conforme a opcao do menu.
 - while: repete o menu enquanto a opcao nao for 5.
 - for-each: percorre os objetos da lista.
+- parseInt: converte uma String para um numero inteiro.
+- NumberFormatException: indica que o texto digitado nao pode ser convertido
+  para inteiro; lerInteiro captura essa excecao e solicita uma nova entrada.
 - INSERT: inclui um registro na tabela.
 - SELECT: consulta registros da tabela.
 - UPDATE: altera os dados de um registro.
 - DELETE: remove um registro.
 - executeUpdate: executa INSERT, UPDATE ou DELETE.
 - executeQuery: executa SELECT.
-- @Override: indica a substituicao de um metodo herdado.
+- extends: declara que uma classe herda de outra.
+- abstract: declara uma classe ou metodo que deve ser completado por uma
+  subclasse.
+- super: chama o construtor ou metodo da classe base.
+- @Override: indica a sobrescrita de um metodo herdado ou abstrato.
+- polimorfismo: permite chamar o metodo sobrescrito pela referencia Animal,
+  executando a implementacao de Cachorro.
 - toString: fornece uma representacao textual do objeto Cachorro.
 
 
